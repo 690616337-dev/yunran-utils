@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>云褍计分-工具集合</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="toast-container" id="toast-container"></div>
+    
+    <div class="max-w-6xl mx-auto p-4 md:p-6">
+        <div class="text-center mb-4 md:mb-6 text-white">
+            <h1 class="text-2xl md:text-4xl font-bold mb-2">云褍计分-工具集合</h1>
+            <p class="text-sm md:text-base opacity-90">身份证查询及生成 · 证件照智能处理 · PDF合并 · 音乐格式转换</p>
+        </div>
+        
+        <div class="glass rounded-2xl shadow-2xl p-3 md:p-6">
+            <!-- Tabs -->
+            <div class="flex flex-wrap gap-1 md:gap-2 mb-4 md:mb-6 bg-gray-100 p-1 rounded-xl overflow-x-auto">
+                <button data-tab="idcard" class="tab-active flex-1 py-2 md:py-3 px-2 md:px-4 rounded-lg font-medium transition-all text-xs md:text-sm whitespace-nowrap touch-btn">🆔 身份证工具</button>
+                <button data-tab="photo" class="flex-1 py-2 md:py-3 px-2 md:px-4 rounded-lg font-medium text-gray-600 transition-all text-xs md:text-sm whitespace-nowrap touch-btn">🖼️ 证件照智能处理</button>
+                <button data-tab="pdf" class="flex-1 py-2 md:py-3 px-2 md:px-4 rounded-lg font-medium text-gray-600 transition-all text-xs md:text-sm whitespace-nowrap touch-btn">📄 PDF合并</button>
+                <button data-tab="audio" class="flex-1 py-2 md:py-3 px-2 md:px-4 rounded-lg font-medium text-gray-600 transition-all text-xs md:text-sm whitespace-nowrap touch-btn">🎵 音乐转换</button>
+            </div>
+
+            <!-- 身份证工具 -->
+            <div id="section-idcard">
+                <div class="flex gap-1 mb-4 bg-gray-50 p-1 rounded-lg overflow-x-auto">
+                    <button data-subtab="query" class="tab-active px-3 md:px-4 py-2 rounded-md text-xs md:text-sm font-medium whitespace-nowrap touch-btn">🔍 查询验证</button>
+                    <button data-subtab="generate" class="px-3 md:px-4 py-2 rounded-md text-xs md:text-sm font-medium text-gray-600 whitespace-nowrap touch-btn">🎲 号码生成</button>
+                </div>
+                
+                <div id="id-query" class="space-y-3">
+                    <input type="text" id="id-input" placeholder="输入18位身份证号码" maxlength="18" 
+                           enterkeyhint="search" pattern="[0-9Xx]*" inputmode="numeric"
+                           autocomplete="off" autocorrect="off" autocapitalize="characters"
+                           class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl text-base uppercase tracking-wider touch-btn">
+                    
+                    <div class="flex flex-col sm:flex-row gap-2 items-center bg-gray-50 p-3 rounded-lg">
+                        <span class="text-xs text-gray-600">📅 计算到：</span>
+                        <input type="date" id="calc-date" class="flex-1 w-full px-3 py-2 border rounded-lg text-sm touch-btn">
+                        <button id="btn-today" class="px-3 py-2 bg-gray-200 rounded-lg text-xs touch-btn">今天</button>
+                    </div>
+                    
+                    <button id="btn-query" class="w-full py-3 bg-indigo-600 text-white rounded-xl font-semibold shadow-lg touch-btn">查询并验证</button>
+                    
+                    <div id="id-result" class="hidden space-y-3"></div>
+                </div>
+
+                <div id="id-generate" class="hidden space-y-3">
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                        <select id="gen-province" class="px-3 py-2 border-2 rounded-lg text-sm touch-btn">
+                            <option value="">选择省份</option>
+                        </select>
+                        <select id="gen-city" class="px-3 py-2 border-2 rounded-lg text-sm touch-btn">
+                            <option value="">选择城市</option>
+                        </select>
+                        <select id="gen-area" class="px-3 py-2 border-2 rounded-lg text-sm touch-btn">
+                            <option value="">选择区县</option>
+                        </select>
+                    </div>
+                    
+                    <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                        <input type="date" id="gen-birth" class="px-3 py-2 border-2 rounded-lg text-sm touch-btn" value="1990-01-01">
+                        <select id="gen-gender" class="px-3 py-2 border-2 rounded-lg text-sm touch-btn">
+                            <option value="random">随机性别</option>
+                            <option value="male">男</option>
+                            <option value="female">女</option>
+                        </select>
+                        <input type="number" id="gen-count" class="px-3 py-2 border-2 rounded-lg text-sm touch-btn" value="5" min="1" max="20" placeholder="生成数量">
+                    </div>
+                    
+                    <button id="btn-generate" class="w-full py-3 bg-purple-600 text-white rounded-xl font-semibold shadow-lg touch-btn">生成号码</button>
+                    
+                    <div id="gen-result" class="hidden space-y-2 max-h-60 overflow-y-auto"></div>
+                </div>
+            </div>
+
+            <!-- 证件照智能处理 -->
+            <div id="section-photo" class="hidden">
+                <div id="step1-upload" class="workflow-step active">
+                    <div class="flex items-center mb-3">
+                        <span class="step-number">1</span>
+                        <span class="font-bold text-gray-800">上传照片</span>
+                        <span class="smart-badge">AI智能分析</span>
+                    </div>
+                    <div id="photo-upload" class="upload-area rounded-xl p-6 text-center cursor-pointer touch-btn">
+                        <input type="file" id="photo-file" class="hidden" accept="image/*" multiple>
+                        <div class="text-4xl mb-2">📷</div>
+                        <p class="text-gray-600 font-medium">点击上传证件照</p>
+                        <p class="text-xs text-gray-400 mt-1">支持批量上传（最多50张，单张≤10MB）</p>
+                    </div>
+                </div>
+
+                <div id="step2-analysis" class="workflow-step hidden">
+                    <div class="flex items-center justify-between mb-3">
+                        <div class="flex items-center">
+                            <span class="step-number">2</span>
+                            <span class="font-bold text-gray-800">智能分析结果</span>
+                        </div>
+                        <button id="btn-toggle-detail" class="text-xs text-indigo-600 touch-btn">展开详情</button>
+                    </div>
+                    <div id="thumbnail-container" class="thumbnail-grid mb-3"></div>
+                    <div id="analysis-detail" class="hidden space-y-3">
+                        <div class="bg-blue-50 border border-blue-200 rounded-xl p-3">
+                            <p class="text-sm text-blue-800">
+                                <span class="font-bold">✓ 智能模式已启用</span><br>
+                                系统已为每张图片自动检测背景色并计算最佳容差值。
+                            </p>
+                        </div>
+                        <div id="single-adjust" class="hidden border-t pt-3">
+                            <p class="text-sm font-medium text-gray-700 mb-2">当前选中：<span id="selected-file-name">-</span></p>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div class="preview-box">
+                                    <div class="text-xs text-gray-500 mb-2">原图</div>
+                                    <img id="img-original" src="" alt="原图">
+                                </div>
+                                <div class="preview-box" style="background-color: #f0f0f0;">
+                                    <div class="text-xs text-gray-500 mb-2">实时预览</div>
+                                    <canvas id="canvas-preview" style="max-width: 100%; max-height: 250px;"></canvas>
+                                </div>
+                            </div>
+                            <div class="space-y-3 mt-3">
+                                <div class="flex items-center gap-3 bg-yellow-50 p-3 rounded-lg">
+                                    <span class="text-sm">背景色：</span>
+                                    <input type="color" id="single-bg-color" class="w-10 h-10 rounded cursor-pointer touch-btn">
+                                    <span class="text-xs text-gray-500">自动检测：<span id="auto-detected-color">-</span></span>
+                                </div>
+                                <div>
+                                    <div class="flex justify-between text-sm mb-1">
+                                        <span>替换容差</span>
+                                        <span id="single-tol-value" class="font-bold text-indigo-600">20</span>
+                                    </div>
+                                    <input type="range" id="single-tolerance" min="0" max="100" value="20">
+                                    <p class="text-xs text-gray-500 mt-1">* 值越小精度越高，建议根据预览效果调整</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="step3-settings" class="workflow-step hidden">
+                    <div class="flex items-center mb-3">
+                        <span class="step-number">3</span>
+                        <span class="font-bold text-gray-800">批量设置</span>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label class="text-sm text-gray-600 block mb-2">处理模式</label>
+                        <div class="mode-toggle">
+                            <button data-mode="smart" class="mode-btn active touch-btn">🤖 智能模式<br><span class="text-xs opacity-70">每张自动识别背景</span></button>
+                            <button data-mode="unified" class="mode-btn touch-btn">🎨 统一模式<br><span class="text-xs opacity-70">所有使用相同背景色</span></button>
+                        </div>
+                    </div>
+
+                    <div id="unified-settings" class="hidden space-y-3 mb-4">
+                        <div class="bg-yellow-50 border border-yellow-200 rounded-xl p-3">
+                            <label class="text-sm font-medium text-yellow-800 block mb-2">统一背景色设置</label>
+                            <div class="flex items-center gap-3">
+                                <input type="color" id="unified-bg-color" class="w-12 h-12 rounded-lg cursor-pointer border-2 border-yellow-400 touch-btn" value="#3b82f6">
+                                <div class="text-xs text-yellow-700">所有图片将使用此背景色进行替换</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="space-y-3">
+                        <div>
+                            <label class="text-sm text-gray-600 block mb-2">输出尺寸</label>
+                            <div class="grid grid-cols-3 sm:grid-cols-5 gap-2" id="size-buttons">
+                                <button data-w="295" data-h="413" data-name="一寸" class="size-btn px-2 py-2 bg-indigo-100 text-indigo-700 rounded-lg text-xs font-medium border-2 border-indigo-500 touch-btn">一寸</button>
+                                <button data-w="413" data-h="579" data-name="二寸" class="size-btn px-2 py-2 bg-gray-100 text-gray-700 rounded-lg text-xs font-medium border-2 border-transparent touch-btn">二寸</button>
+                                <button data-w="260" data-h="378" data-name="小一寸" class="size-btn px-2 py-2 bg-gray-100 text-gray-700 rounded-lg text-xs font-medium border-2 border-transparent touch-btn">小一寸</button>
+                                <button data-w="390" data-h="567" data-name="大一寸" class="size-btn px-2 py-2 bg-gray-100 text-gray-700 rounded-lg text-xs font-medium border-2 border-transparent touch-btn">大一寸</button>
+                                <button data-w="0" data-h="0" data-name="原图" class="size-btn px-2 py-2 bg-gray-100 text-gray-700 rounded-lg text-xs font-medium border-2 border-transparent touch-btn">原图</button>
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <label class="text-sm text-gray-600 block mb-2">导出分辨率（DPI）</label>
+                            <div class="grid grid-cols-4 gap-2" id="dpi-buttons">
+                                <button data-dpi="72" class="dpi-btn bg-gray-100 text-gray-700 touch-btn">72 DPI<br><span class="text-xs opacity-70">标准</span></button>
+                                <button data-dpi="150" class="dpi-btn bg-gray-100 text-gray-700 touch-btn">150 DPI<br><span class="text-xs opacity-70">高清</span></button>
+                                <button data-dpi="300" class="dpi-btn bg-indigo-100 text-indigo-700 border-indigo-500 touch-btn active">300 DPI<br><span class="text-xs opacity-70">印刷</span></button>
+                                <button data-dpi="600" class="dpi-btn bg-gray-100 text-gray-700 touch-btn">600 DPI<br><span class="text-xs opacity-70">超清</span></button>
+                            </div>
+                            <div class="resolution-info" id="res-info">当前：一寸 @ 300 DPI = 1231×1726 像素（适合打印）</div>
+                        </div>
+
+                        <div>
+                            <label class="text-sm text-gray-600 block mb-2">目标背景色（替换为）</label>
+                            <div class="flex flex-wrap gap-3" id="color-buttons">
+                                <button data-color="#ffffff" class="tcolor-btn color-btn active touch-btn" style="background: #ffffff; border-color: #1f2937;" title="白"></button>
+                                <button data-color="#3b82f6" class="tcolor-btn color-btn touch-btn" style="background: #3b82f6;" title="蓝"></button>
+                                <button data-color="#ef4444" class="tcolor-btn color-btn touch-btn" style="background: #ef4444;" title="红"></button>
+                                <button data-color="#22c55e" class="tcolor-btn color-btn touch-btn" style="background: #22c55e;" title="绿"></button>
+                                <input type="color" id="custom-target" class="w-10 h-10 rounded-full cursor-pointer touch-btn" value="#ffffff">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="step4-process" class="workflow-step hidden">
+                    <div class="flex items-center mb-3">
+                        <span class="step-number">4</span>
+                        <span class="font-bold text-gray-800">批量处理</span>
+                    </div>
+                    <button id="btn-process" class="w-full py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl font-bold shadow-lg text-lg touch-btn">
+                        🚀 一键智能处理所有图片
+                    </button>
+                    
+                    <div id="progress-box" class="hidden mt-4">
+                        <div class="flex justify-between text-xs text-gray-600 mb-1">
+                            <span id="progress-status">准备处理...</span>
+                            <span id="prog-text">0/0</span>
+                        </div>
+                        <div class="w-full h-3 bg-gray-200 rounded-full overflow-hidden">
+                            <div id="prog-bar" class="h-full bg-gradient-to-r from-indigo-600 to-purple-600 transition-all" style="width: 0%"></div>
+                        </div>
+                    </div>
+
+                    <div id="complete-actions" class="hidden mt-4 space-y-2">
+                        <div class="bg-green-50 border border-green-200 rounded-xl p-3 text-center">
+                            <p class="text-green-800 font-bold">✅ 处理完成！</p>
+                            <p class="text-xs text-green-600 mt-1">所有图片已按智能识别的背景色分别处理</p>
+                        </div>
+                        <button id="btn-download" class="w-full py-3 bg-green-600 text-white rounded-xl font-semibold shadow-lg touch-btn">
+                            ⬇️ 下载所有处理结果（ZIP）
+                        </button>
+                        <button id="btn-reset" class="w-full py-2 border-2 border-gray-300 text-gray-600 rounded-lg text-sm touch-btn">
+                            重新开始
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- PDF合并 -->
+            <div id="section-pdf" class="hidden space-y-4">
+                <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4">
+                    <h3 class="font-bold text-blue-900 mb-1 text-sm md:text-base">📄 PDF合并工具</h3>
+                    <p class="text-xs md:text-sm text-blue-800">批量上传PDF，拖拽排序，合并下载或打印（单文件≤50MB）</p>
+                </div>
+
+                <div id="pdf-upload" class="upload-area rounded-xl p-6 text-center cursor-pointer touch-btn">
+                    <input type="file" id="pdf-input" class="hidden" accept=".pdf" multiple>
+                    <div class="text-4xl mb-2">📑</div>
+                    <p class="text-gray-600 font-medium">点击上传PDF文件</p>
+                    <p class="text-xs text-gray-400 mt-1">支持多选</p>
+                </div>
+
+                <div id="pdf-list-box" class="hidden">
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="text-sm font-medium text-gray-700">已选择文件：</span>
+                        <button id="btn-clear-pdf" class="text-xs text-red-600 touch-btn">清空</button>
+                    </div>
+                    <div id="pdf-list" class="space-y-2 max-h-60 overflow-y-auto bg-gray-50 p-3 rounded-xl mb-4"></div>
+                    
+                    <div id="pdf-prog-box" class="hidden mb-4">
+                        <div class="flex justify-between text-xs text-gray-600 mb-1">
+                            <span>合并进度</span>
+                            <span id="pdf-prog-text">0%</span>
+                        </div>
+                        <div class="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+                            <div id="pdf-prog-bar" class="h-full bg-indigo-600 transition-all" style="width: 0%"></div>
+                        </div>
+                    </div>
+
+                    <div class="flex flex-col sm:flex-row gap-2">
+                        <button id="btn-merge" class="flex-1 py-3 bg-indigo-600 text-white rounded-xl font-semibold shadow-lg touch-btn">🔗 合并PDF</button>
+                        <button id="btn-dl-pdf" class="hidden flex-1 py-3 bg-green-600 text-white rounded-xl font-semibold shadow-lg touch-btn">⬇️ 下载</button>
+                        <button id="btn-print-pdf" class="hidden flex-1 py-3 bg-blue-600 text-white rounded-xl font-semibold shadow-lg touch-btn">🖨️ 打印</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 音乐格式转换 -->
+            <div id="section-audio" class="hidden space-y-4">
+                <div class="bg-gradient-to-r from-pink-500 to-rose-500 rounded-xl p-4 mb-4 text-white">
+                    <h3 class="font-bold mb-1 text-sm md:text-base">🎵 音乐格式转换</h3>
+                    <p class="text-xs md:text-sm opacity-90">支持多种格式转MP3：WAV、AAC、FLAC、OGG、M4A、WMA、视频提取音频等</p>
+                </div>
+
+                <!-- 步骤1：上传 -->
+                <div id="audio-step1" class="workflow-step active">
+                    <div class="flex items-center mb-3">
+                        <span class="step-number">1</span>
+                        <span class="font-bold text-gray-800">上传音频/视频文件</span>
+                        <span class="smart-badge">支持批量</span>
+                    </div>
+                    <div id="audio-upload" class="upload-area rounded-xl p-6 text-center cursor-pointer touch-btn">
+                        <input type="file" id="audio-input" class="hidden" accept="audio/*,video/*" multiple>
+                        <div class="text-4xl mb-2">🎵</div>
+                        <p class="text-gray-600 font-medium">点击上传音频或视频文件</p>
+                        <p class="text-xs text-gray-400 mt-1">支持：MP4、WAV、AAC、FLAC、OGG、M4A、WMA、WEBM等</p>
+                    </div>
+                </div>
+
+                <!-- 步骤2：文件列表和设置 -->
+                <div id="audio-step2" class="workflow-step hidden">
+                    <div class="flex items-center justify-between mb-3">
+                        <div class="flex items-center">
+                            <span class="step-number">2</span>
+                            <span class="font-bold text-gray-800">转换设置</span>
+                        </div>
+                        <button id="btn-clear-audio" class="text-xs text-red-600 touch-btn">清空全部</button>
+                    </div>
+
+                    <!-- 转换设置 -->
+                    <div class="bg-gray-50 rounded-xl p-4 mb-4 space-y-4">
+                        <div>
+                            <label class="text-sm text-gray-600 block mb-2">输出格式</label>
+                            <div class="flex flex-wrap gap-2">
+                                <button data-format="mp3" class="format-btn active px-4 py-2 bg-indigo-100 text-indigo-700 rounded-lg text-sm font-medium border-2 border-indigo-500 touch-btn">MP3</button>
+                                <button data-format="wav" class="format-btn px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium border-2 border-transparent touch-btn">WAV</button>
+                                <button data-format="aac" class="format-btn px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium border-2 border-transparent touch-btn">AAC</button>
+                                <button data-format="ogg" class="format-btn px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium border-2 border-transparent touch-btn">OGG</button>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="text-sm text-gray-600 block mb-2">音质/比特率</label>
+                            <div class="grid grid-cols-3 sm:grid-cols-5 gap-2" id="bitrate-buttons">
+                                <button data-bitrate="64" class="bitrate-btn touch-btn">64 kbps<br><span class="text-xs opacity-70">语音</span></button>
+                                <button data-bitrate="128" class="bitrate-btn touch-btn">128 kbps<br><span class="text-xs opacity-70">标准</span></button>
+                                <button data-bitrate="192" class="bitrate-btn active touch-btn">192 kbps<br><span class="text-xs opacity-70">推荐</span></button>
+                                <button data-bitrate="256" class="bitrate-btn touch-btn">256 kbps<br><span class="text-xs opacity-70">高品质</span></button>
+                                <button data-bitrate="320" class="bitrate-btn touch-btn">320 kbps<br><span class="text-xs opacity-70">无损感</span></button>
+                            </div>
+                        </div>
+
+                        <div class="flex items-center gap-3">
+                            <input type="checkbox" id="audio-normalize" class="w-5 h-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" checked>
+                            <label for="audio-normalize" class="text-sm text-gray-700">音量标准化（避免声音忽大忽小）</label>
+                        </div>
+                    </div>
+
+                    <!-- 文件列表 -->
+                    <div id="audio-file-list" class="space-y-2 max-h-80 overflow-y-auto">
+                        <!-- 动态生成文件项 -->
+                    </div>
+                </div>
+
+                <!-- 步骤3：转换 -->
+                <div id="audio-step3" class="workflow-step hidden">
+                    <div class="flex items-center mb-3">
+                        <span class="step-number">3</span>
+                        <span class="font-bold text-gray-800">开始转换</span>
+                    </div>
+                    
+                    <button id="btn-convert-audio" class="w-full py-4 bg-gradient-to-r from-pink-500 to-rose-500 text-white rounded-xl font-bold shadow-lg text-lg touch-btn">
+                        🎵 开始批量转换
+                    </button>
+
+                    <!-- 加载FFmpeg提示 -->
+                    <div id="ffmpeg-loading" class="hidden mt-4 p-4 bg-blue-50 border border-blue-200 rounded-xl text-center">
+                        <div class="loader mb-2"></div>
+                        <p class="text-sm text-blue-800">正在加载音频处理引擎...</p>
+                        <p class="text-xs text-blue-600 mt-1">首次使用需要下载约26MB资源，请耐心等待</p>
+                    </div>
+
+                    <!-- 总体进度 -->
+                    <div id="audio-progress-box" class="hidden mt-4">
+                        <div class="flex justify-between text-sm text-gray-600 mb-1">
+                            <span id="audio-progress-status">准备转换...</span>
+                            <span id="audio-prog-text">0/0</span>
+                        </div>
+                        <div class="w-full h-3 bg-gray-200 rounded-full overflow-hidden">
+                            <div id="audio-prog-bar" class="h-full bg-gradient-to-r from-pink-500 to-rose-500 transition-all" style="width: 0%"></div>
+                        </div>
+                    </div>
+
+                    <!-- 完成操作 -->
+                    <div id="audio-complete-actions" class="hidden mt-4 space-y-2">
+                        <div class="bg-green-50 border border-green-200 rounded-xl p-3 text-center">
+                            <p class="text-green-800 font-bold">✅ 转换完成！</p>
+                            <p class="text-xs text-green-600 mt-1">所有文件已成功转换</p>
+                        </div>
+                        <button id="btn-download-audio" class="w-full py-3 bg-green-600 text-white rounded-xl font-semibold shadow-lg touch-btn">
+                            ⬇️ 下载所有音频（ZIP）
+                        </button>
+                        <button id="btn-reset-audio" class="w-full py-2 border-2 border-gray-300 text-gray-600 rounded-lg text-sm touch-btn">
+                            重新开始
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="mt-4 text-center text-white text-xs opacity-70">
+            <p>所有处理均在本地完成 · 修复版 v2.7</p>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
