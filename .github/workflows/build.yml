@@ -10,6 +10,7 @@ on:
 jobs:
   build:
     strategy:
+      fail-fast: false
       matrix:
         include:
           - os: windows-latest
@@ -20,11 +21,11 @@ jobs:
             platform: win
             arch: arm64
             name: Windows-ARM64
-          - os: macos-latest
+          - os: macos-13
             platform: mac
             arch: x64
             name: macOS-x64
-          - os: macos-latest
+          - os: macos-14
             platform: mac
             arch: arm64
             name: macOS-ARM64
@@ -46,6 +47,7 @@ jobs:
         python-version: '3.11'
 
     - name: Install dependencies
+      shell: bash
       run: |
         npm install
         cd frontend && npm install && cd ..
@@ -54,25 +56,24 @@ jobs:
     - name: Build frontend
       run: npm run build:frontend
 
-    - name: Build Electron (Windows x64)
-      if: matrix.platform == 'win' && matrix.arch == 'x64'
-      run: npx electron-builder --win --x64
-
-    - name: Build Electron (Windows ARM64)
-      if: matrix.platform == 'win' && matrix.arch == 'arm64'
-      run: npx electron-builder --win --arm64
-
-    - name: Build Electron (macOS x64)
-      if: matrix.platform == 'mac' && matrix.arch == 'x64'
-      run: npx electron-builder --mac --x64
+    - name: Build Electron
       env:
-        CSC_IDENTITY_AUTO_DISCOVERY: false
-
-    - name: Build Electron (macOS ARM64)
-      if: matrix.platform == 'mac' && matrix.arch == 'arm64'
-      run: npx electron-builder --mac --arm64
-      env:
-        CSC_IDENTITY_AUTO_DISCOVERY: false
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        if [ "${{ matrix.platform }}" == "win" ]; then
+          if [ "${{ matrix.arch }}" == "x64" ]; then
+            npx electron-builder --win --x64
+          else
+            npx electron-builder --win --arm64
+          fi
+        else
+          if [ "${{ matrix.arch }}" == "x64" ]; then
+            npx electron-builder --mac --x64
+          else
+            npx electron-builder --mac --arm64
+          fi
+        fi
+      shell: bash
 
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
