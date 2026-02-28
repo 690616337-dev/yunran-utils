@@ -248,8 +248,18 @@ def get_constellation(month: int, day: int) -> str:
 
 def generate_id_card(area_code: str = None, birth_date: str = None, gender: str = None) -> str:
     """生成身份证号码"""
-    if not area_code:
-        area_code = random.choice(list(AREA_CODES.keys()))
+    # 确保 area_code 是 6 位数字（前 2 位省 + 中间 2 位市 + 后 2 位区县）
+    if not area_code or len(area_code) < 2:
+        # 随机选择一个省级代码，并补充为 6 位
+        province_code = random.choice(list(AREA_CODES.keys()))
+        # 补充随机市和区县代码
+        area_code = province_code + f"{random.randint(1, 20):02d}{random.randint(1, 30):02d}"
+    elif len(area_code) == 2:
+        # 只有省级代码，补充市和区县
+        area_code = area_code + f"{random.randint(1, 20):02d}{random.randint(1, 30):02d}"
+    elif len(area_code) < 6:
+        # 补足 6 位
+        area_code = area_code.ljust(6, '0')
     
     if not birth_date:
         start_date = datetime(1950, 1, 1)
@@ -258,8 +268,11 @@ def generate_id_card(area_code: str = None, birth_date: str = None, gender: str 
         birth_date = (start_date + timedelta(days=days)).strftime("%Y%m%d")
     else:
         birth_date = birth_date.replace("-", "")
+        # 确保是 8 位日期格式
+        if len(birth_date) != 8:
+            birth_date = datetime.now().strftime("%Y%m%d")
     
-    # 顺序码
+    # 顺序码 (001-999)
     sequence = random.randint(1, 999)
     if gender == "男":
         if sequence % 2 == 0:
@@ -268,7 +281,8 @@ def generate_id_card(area_code: str = None, birth_date: str = None, gender: str 
         if sequence % 2 == 1:
             sequence += 1
     
-    id17 = f"{area_code}{birth_date}{sequence:03d}"
+    # 确保顺序码是 3 位数
+    id17 = f"{area_code[:6]}{birth_date}{sequence:03d}"
     check_code = calculate_check_code(id17)
     return id17 + check_code
 
@@ -320,6 +334,8 @@ async def api_get_areas():
 @app.post("/api/pdf/merge")
 async def api_merge_pdf(files: List[UploadFile] = File(...)):
     """合并PDF文件"""
+    logger.info(f"PDF merge request received, files count: {len(files)}")
+    
     if not PDF_AVAILABLE:
         raise HTTPException(status_code=503, detail="PDF处理功能不可用，请安装pypdf")
     
@@ -334,36 +350,75 @@ async def api_merge_pdf(files: List[UploadFile] = File(...)):
     output_path = None
     
     try:
-        for file in files:
+        for idx, file in enumerate(files):
+            logger.info(f"Processing file {idx}: {file.filename}")
+            
             if not file.filename:
+                logger.warning(f"File {idx} has no filename, skipping")
                 continue
             if not file.filename.lower().endswith('.pdf'):
+                logger.warning(f"File {file.filename} is not a PDF, skipping")
                 continue
             
+            # 读取文件内容
+            try:
+                content = await file.read()
+                logger.info(f"File {file.filename} size: {len(content)} bytes")
+            except Exception as e:
+                logger.error(f"Error reading file {file.filename}: {e}")
+                raise HTTPException(status_code=400, detail=f"读取文件失败: {file.filename}")
+            
             # 限制单个文件大小 (50MB)
-            content = await file.read()
             if len(content) > 50 * 1024 * 1024:
                 raise HTTPException(status_code=400, detail=f"文件 {file.filename} 超过50MB限制")
             
-            temp_path = os.path.join(TEMP_DIR, f"temp_{datetime.now().strftime('%Y%m%d%H%M%S')}_{file.filename}")
-            with open(temp_path, "wb") as f:
-                f.write(content)
-            temp_files.append(temp_path)
-            register_temp_file(temp_path)
-            merger.append(temp_path)
+            # 保存临时文件
+            timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
+            temp_filename = f"temp_{timestamp}_{idx}_{file.filename}"
+            temp_path = os.path.join(TEMP_DIR, temp_filename)
+            
+            try:
+                with open(temp_path, "wb") as f:
+                    f.write(content)
+                temp_files.append(temp_path)
+                register_temp_file(temp_path)
+                logger.info(f"Saved temp file: {temp_path}")
+            except Exception as e:
+                logger.error(f"Error saving temp file {temp_path}: {e}")
+                raise HTTPException(status_code=500, detail=f"保存文件失败: {file.filename}")
+            
+            # 添加到 merger
+            try:
+                merger.append(temp_path)
+                logger.info(f"Added {file.filename} to merger")
+            except Exception as e:
+                logger.error(f"Error adding {file.filename} to merger: {e}")
+                raise HTTPException(status_code=400, detail=f"无效的PDF文件: {file.filename}")
         
         if len(temp_files) == 0:
             raise HTTPException(status_code=400, detail="没有有效的PDF文件")
         
+        # 生成输出文件
         output_filename = f"merged_{datetime.now().strftime('%Y%m%d%H%M%S')}.pdf"
         output_path = os.path.join(TEMP_DIR, output_filename)
-        merger.write(output_path)
-        merger.close()
-        register_temp_file(output_path)
+        
+        try:
+            merger.write(output_path)
+            merger.close()
+            register_temp_file(output_path)
+            logger.info(f"Merged PDF saved to: {output_path}")
+        except Exception as e:
+            logger.error(f"Error writing merged PDF: {e}")
+            raise HTTPException(status_code=500, detail=f"合并PDF失败: {str(e)}")
         
         # 读取文件并返回
-        with open(output_path, "rb") as f:
-            file_content = f.read()
+        try:
+            with open(output_path, "rb") as f:
+                file_content = f.read()
+            logger.info(f"Returning merged PDF, size: {len(file_content)} bytes")
+        except Exception as e:
+            logger.error(f"Error reading merged PDF: {e}")
+            raise HTTPException(status_code=500, detail="读取合并后的文件失败")
         
         # 清理临时文件
         for temp_file in temp_files:
@@ -378,7 +433,7 @@ async def api_merge_pdf(files: List[UploadFile] = File(...)):
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error merging PDF: {e}")
+        logger.error(f"Unexpected error merging PDF: {e}")
         # 清理临时文件
         for temp_file in temp_files:
             cleanup_temp_file(temp_file)
