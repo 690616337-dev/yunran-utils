@@ -19,7 +19,7 @@ import {
   DeleteOutlined,
   FilePdfOutlined
 } from '@ant-design/icons';
-import { pdfApi } from '../api';
+import { mergePdf } from '../api';
 
 const { Title, Text } = Typography;
 const { Dragger } = Upload;
@@ -72,7 +72,7 @@ export default function PdfMergePage() {
 
     try {
       const files = fileList.map(f => f.originFileObj || f);
-      const response = await pdfApi.merge(files);
+      const response = await mergePdf(files, (p) => setProgress(p));
       
       const blob = new Blob([response.data], { type: 'application/pdf' });
       setMergedBlob(blob);

@@ -17,7 +17,7 @@ import {
   DownloadOutlined,
   BgColorsOutlined
 } from '@ant-design/icons';
-import { photoApi } from '../api';
+import { removeBackground, changeBackground } from '../api';
 
 const { Title, Text } = Typography;
 const { Dragger } = Upload;
@@ -63,7 +63,7 @@ export default function PhotoPage() {
     setProcessing(true);
     try {
       const uploadFile = file.originFileObj || file;
-      const response = await photoApi.removeBg(uploadFile);
+      const response = await removeBackground(uploadFile);
       
       const blob = new Blob([response.data], { type: 'image/png' });
       const url = URL.createObjectURL(blob);
@@ -85,7 +85,7 @@ export default function PhotoPage() {
     setProcessing(true);
     try {
       const uploadFile = file.originFileObj || file;
-      const response = await photoApi.changeBg(uploadFile, bgColor);
+      const response = await changeBackground(uploadFile, bgColor);
       
       const blob = new Blob([response.data], { type: 'image/png' });
       const url = URL.createObjectURL(blob);

@@ -17,7 +17,7 @@ import {
   AudioOutlined,
   DeleteOutlined
 } from '@ant-design/icons';
-import { audioApi } from '../api';
+import { convertAudio } from '../api';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -82,7 +82,7 @@ export default function AudioPage() {
 
       try {
         const uploadFile = file.originFileObj || file;
-        const response = await audioApi.convert(uploadFile, format, bitrate);
+        const response = await convertAudio(uploadFile, format, bitrate);
         
         const blob = new Blob([response.data], { type: `audio/${format}` });
         const url = URL.createObjectURL(blob);
