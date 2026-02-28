@@ -152,17 +152,11 @@ atexit.register(cleanup_all_temp_files)
 
 # ==================== 身份证工具 API ====================
 
+# 导入省市级联数据
+from area_codes import AREA_CODES_HIERARCHY, AREA_CODES, get_all_city_codes, get_full_area_code
+
 WEIGHTS = [7, 9, 10, 5, 8, 4, 2, 1, 6, 3, 7, 9, 10, 5, 8, 4, 2]
 CHECK_CODES = ['1', '0', 'X', '9', '8', '7', '6', '5', '4', '3', '2']
-AREA_CODES = {
-    '11': '北京市', '12': '天津市', '13': '河北省', '14': '山西省', '15': '内蒙古自治区',
-    '21': '辽宁省', '22': '吉林省', '23': '黑龙江省',
-    '31': '上海市', '32': '江苏省', '33': '浙江省', '34': '安徽省', '35': '福建省', '36': '江西省', '37': '山东省',
-    '41': '河南省', '42': '湖北省', '43': '湖南省', '44': '广东省', '45': '广西壮族自治区', '46': '海南省',
-    '50': '重庆市', '51': '四川省', '52': '贵州省', '53': '云南省', '54': '西藏自治区',
-    '61': '陕西省', '62': '甘肃省', '63': '青海省', '64': '宁夏回族自治区', '65': '新疆维吾尔自治区',
-    '71': '台湾省', '81': '香港特别行政区', '82': '澳门特别行政区'
-}
 
 def calculate_check_code(id17: str) -> str:
     """计算身份证校验码"""
@@ -248,18 +242,29 @@ def get_constellation(month: int, day: int) -> str:
 
 def generate_id_card(area_code: str = None, birth_date: str = None, gender: str = None) -> str:
     """生成身份证号码"""
-    # 确保 area_code 是 6 位数字（前 2 位省 + 中间 2 位市 + 后 2 位区县）
-    if not area_code or len(area_code) < 2:
-        # 随机选择一个省级代码，并补充为 6 位
-        province_code = random.choice(list(AREA_CODES.keys()))
-        # 补充随机市和区县代码
-        area_code = province_code + f"{random.randint(1, 20):02d}{random.randint(1, 30):02d}"
+    # 处理地区代码
+    if not area_code:
+        # 随机选择一个市级代码
+        all_cities = get_all_city_codes()
+        city = random.choice(all_cities)
+        area_code = get_full_area_code(city["code"])
     elif len(area_code) == 2:
-        # 只有省级代码，补充市和区县
-        area_code = area_code + f"{random.randint(1, 20):02d}{random.randint(1, 30):02d}"
-    elif len(area_code) < 6:
-        # 补足 6 位
-        area_code = area_code.ljust(6, '0')
+        # 省级代码，需要选择该省的一个市
+        province_code = area_code
+        if province_code in AREA_CODES_HIERARCHY:
+            cities = list(AREA_CODES_HIERARCHY[province_code]["cities"].keys())
+            city_code = random.choice(cities)
+            area_code = get_full_area_code(city_code)
+        else:
+            area_code = "110101"  # 默认北京东城区
+    elif len(area_code) == 4:
+        # 市级代码，补充区县码
+        area_code = get_full_area_code(area_code)
+    elif len(area_code) >= 6:
+        # 已经是完整代码，取前6位
+        area_code = area_code[:6]
+    else:
+        area_code = "110101"  # 默认北京东城区
     
     if not birth_date:
         start_date = datetime(1950, 1, 1)
@@ -308,12 +313,29 @@ async def api_generate_id_card(
     """生成身份证号码"""
     try:
         # 参数验证
-        if area_code and area_code not in AREA_CODES:
-            raise HTTPException(status_code=400, detail="无效的地区代码")
         if gender and gender not in ["男", "女"]:
             raise HTTPException(status_code=400, detail="性别必须是'男'或'女'")
         if count < 1 or count > 50:
             raise HTTPException(status_code=400, detail="生成数量必须在1-50之间")
+        
+        # 验证地区代码（支持省级2位或市级4/6位）
+        valid_area = True
+        if area_code:
+            if len(area_code) == 2:
+                # 省级代码
+                valid_area = area_code in AREA_CODES_HIERARCHY
+            elif len(area_code) >= 4:
+                # 市级代码，检查前2位是否在省级中
+                province_code = area_code[:2]
+                valid_area = province_code in AREA_CODES_HIERARCHY
+                if valid_area and len(area_code) >= 4:
+                    city_code = area_code[:4]
+                    valid_area = city_code in AREA_CODES_HIERARCHY[province_code]["cities"]
+            else:
+                valid_area = False
+            
+            if not valid_area:
+                raise HTTPException(status_code=400, detail="无效的地区代码")
         
         count = min(count, 50)  # 最多生成50个
         id_cards = [generate_id_card(area_code, birth_date, gender) for _ in range(count)]
@@ -326,8 +348,17 @@ async def api_generate_id_card(
 
 @app.get("/api/idcard/areas")
 async def api_get_areas():
-    """获取地区列表"""
-    return {"areas": [{"code": k, "name": v} for k, v in AREA_CODES.items()]}
+    """获取地区列表（省市级联）"""
+    return {
+        "provinces": [
+            {
+                "code": k, 
+                "name": v["name"],
+                "cities": [{"code": ck, "name": cv} for ck, cv in v["cities"].items()]
+            } 
+            for k, v in AREA_CODES_HIERARCHY.items()
+        ]
+    }
 
 # ==================== PDF合并 API ====================
 
