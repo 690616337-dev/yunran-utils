@@ -14,10 +14,31 @@ let mainWindow
 let pythonProcess = null
 let pythonReady = false
 
-// 判断是否为开发环境
-const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged
+// 获取Backend可执行文件路径
+function getBackendExecutablePath() {
+  if (isDev) {
+    // 开发环境：使用 Python 运行 main.py
+    return null // 返回 null 表示使用 Python 脚本模式
+  }
+  
+  // 生产环境：使用打包后的可执行文件
+  const resourcesPath = process.resourcesPath
+  const backendDir = path.join(resourcesPath, 'backend')
+  
+  // 根据平台选择可执行文件
+  const executableName = process.platform === 'win32' ? 'backend.exe' : 'backend'
+  const executablePath = path.join(backendDir, executableName)
+  
+  if (fs.existsSync(executablePath)) {
+    log.info(`Using bundled backend executable: ${executablePath}`)
+    return executablePath
+  }
+  
+  log.warn('Bundled backend executable not found, falling back to Python script mode')
+  return null
+}
 
-// 获取Python可执行文件路径
+// 获取Python可执行文件路径（仅用于开发环境或回退）
 function getPythonPath() {
   if (isDev) {
     // 开发环境：尝试使用 python3 或 python
@@ -37,22 +58,8 @@ function getPythonPath() {
     return 'python'
   }
   
-  // 生产环境：使用打包后的Python或系统Python
-  const resourcesPath = process.resourcesPath
-  const bundledPython = path.join(resourcesPath, 'backend', 'python')
-  if (fs.existsSync(bundledPython)) {
-    log.info(`Using bundled Python: ${bundledPython}`)
-    return bundledPython
-  }
-  
-  // 检查Python3
-  const python3Path = path.join(resourcesPath, 'backend', 'python3')
-  if (fs.existsSync(python3Path)) {
-    log.info(`Using bundled Python3: ${python3Path}`)
-    return python3Path
-  }
-  
-  log.warn('Bundled Python not found, falling back to system Python')
+  // 生产环境：回退到系统 Python
+  log.warn('Using system Python as fallback')
   return 'python3'
 }
 
@@ -87,33 +94,52 @@ async function checkPythonHealth(maxRetries = 30, interval = 1000) {
 // 启动Python后端服务
 async function startPythonBackend() {
   const backendPath = getBackendPath()
-  const mainPyPath = path.join(backendPath, 'main.py')
+  const executablePath = getBackendExecutablePath()
   
   log.info('Starting Python backend...')
   log.info('Backend path:', backendPath)
-  log.info('Main.py path:', mainPyPath)
   
-  // 检查main.py是否存在
-  if (!fs.existsSync(mainPyPath)) {
-    log.error('main.py not found:', mainPyPath)
-    throw new Error(`main.py not found at ${mainPyPath}`)
+  let pyProcess
+  
+  if (executablePath) {
+    // 使用打包后的可执行文件
+    log.info('Using bundled executable:', executablePath)
+    
+    const env = {
+      ...process.env,
+      PYTHONUNBUFFERED: '1',
+    }
+    
+    pyProcess = spawn(executablePath, [], {
+      cwd: backendPath,
+      env: env,
+      stdio: 'pipe'
+    })
+  } else {
+    // 使用 Python 脚本模式（开发环境或回退）
+    const mainPyPath = path.join(backendPath, 'main.py')
+    
+    // 检查main.py是否存在
+    if (!fs.existsSync(mainPyPath)) {
+      log.error('main.py not found:', mainPyPath)
+      throw new Error(`main.py not found at ${mainPyPath}`)
+    }
+    
+    const pythonPath = getPythonPath()
+    log.info('Using Python script mode:', pythonPath)
+    
+    const env = {
+      ...process.env,
+      PYTHONPATH: backendPath,
+      PYTHONUNBUFFERED: '1',
+    }
+    
+    pyProcess = spawn(pythonPath, ['-m', 'uvicorn', 'main:app', '--host', '127.0.0.1', '--port', '8000'], {
+      cwd: backendPath,
+      env: env,
+      stdio: 'pipe'
+    })
   }
-  
-  const pythonPath = getPythonPath()
-  log.info('Using Python:', pythonPath)
-  
-  // 启动Python进程
-  const env = {
-    ...process.env,
-    PYTHONPATH: backendPath,
-    PYTHONUNBUFFERED: '1',
-  }
-  
-  const pyProcess = spawn(pythonPath, ['-m', 'uvicorn', 'main:app', '--host', '127.0.0.1', '--port', '8000'], {
-    cwd: backendPath,
-    env: env,
-    stdio: 'pipe'
-  })
   
   pyProcess.stdout.on('data', (data) => {
     const message = data.toString().trim()

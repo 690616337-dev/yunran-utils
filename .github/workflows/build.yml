@@ -51,10 +51,25 @@ jobs:
       run: |
         npm install
         cd frontend && npm install && cd ..
-        pip install -r backend/requirements.txt
+        pip install -r backend/requirements.txt pyinstaller
 
     - name: Build frontend
       run: npm run build:frontend
+
+    - name: Build Backend (PyInstaller)
+      shell: bash
+      run: |
+        cd backend
+        if [ "${{ matrix.platform }}" == "win" ]; then
+          pyinstaller --onefile --name backend main.py
+          mkdir -p ../resources/backend
+          cp dist/backend.exe ../resources/backend/
+        else
+          pyinstaller --onefile --name backend main.py
+          mkdir -p ../resources/backend
+          cp dist/backend ../resources/backend/
+        fi
+        cd ..
 
     - name: Build Electron
       env:

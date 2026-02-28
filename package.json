@@ -59,19 +59,9 @@
     ],
     "extraResources": [
       {
-        "from": "backend",
+        "from": "resources/backend",
         "to": "backend",
-        "filter": [
-          "**/*",
-          "!__pycache__",
-          "!**/__pycache__",
-          "!**/*.pyc",
-          "!**/*.pyo",
-          "!.env",
-          "!.gitignore",
-          "!temp",
-          "!temp/**/*"
-        ]
+        "filter": ["**/*"]
       }
     ],
     "asar": true,
