@@ -94,4 +94,14 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: ${{ matrix.name }}
-        path: dist/*
+        path: |
+          dist/*.dmg
+          dist/*.zip
+          dist/*.exe
+          dist/*.AppImage
+          dist/*.deb
+          dist/*.rpm
+          dist/*.snap
+          dist/*.7z
+          dist/*.tar.gz
+          dist/*.tar.xz
