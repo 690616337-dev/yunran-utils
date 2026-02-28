@@ -5,8 +5,15 @@ node_modules/
 
 # Build outputs
 dist/
-build/
 frontend/dist/
+# 保留 build 目录下的图标文件
+!build/
+build/*/
+!build/icon.ico
+!build/icon.icns
+!build/icon.png
+!build/icon.svg
+!build/icons/
 backend/__pycache__/
 backend/temp/
 *.pyc
