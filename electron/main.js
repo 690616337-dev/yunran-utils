@@ -14,6 +14,9 @@ let mainWindow
 let pythonProcess = null
 let pythonReady = false
 
+// 判断是否为开发环境
+const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged
+
 // 获取Backend可执行文件路径
 function getBackendExecutablePath() {
   if (isDev) {
