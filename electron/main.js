@@ -235,16 +235,29 @@ function createWindow() {
     mainWindow.webContents.openDevTools()
   } else {
     // 生产环境：加载打包后的文件
-    const indexPath = path.join(__dirname, '..', 'frontend', 'dist', 'index.html')
-    log.info('Loading production file:', indexPath)
-    if (!fs.existsSync(indexPath)) {
-      log.error('index.html not found:', indexPath)
-      // 尝试替代路径
-      const altPath = path.join(process.resourcesPath, 'frontend', 'dist', 'index.html')
-      log.info('Trying alternative path:', altPath)
-      mainWindow.loadFile(altPath)
-    } else {
+    // 尝试多个可能的路径
+    const possiblePaths = [
+      path.join(__dirname, '..', 'frontend', 'dist', 'index.html'),
+      path.join(__dirname, 'frontend', 'dist', 'index.html'),
+      path.join(process.resourcesPath, 'frontend', 'dist', 'index.html'),
+      path.join(app.getAppPath(), 'frontend', 'dist', 'index.html'),
+    ]
+    
+    let indexPath = null
+    for (const p of possiblePaths) {
+      log.info('Checking path:', p)
+      if (fs.existsSync(p)) {
+        indexPath = p
+        log.info('Found index.html at:', p)
+        break
+      }
+    }
+    
+    if (indexPath) {
       mainWindow.loadFile(indexPath)
+    } else {
+      log.error('index.html not found in any of:', possiblePaths)
+      mainWindow.loadURL('data:text/html,<h1>错误：无法找到前端文件</h1>')
     }
   }
   
@@ -275,26 +288,28 @@ function createWindow() {
 
 // Electron应用就绪
 app.whenReady().then(async () => {
+  // 先创建窗口，即使后端启动失败也能看到界面
+  createWindow()
+  
   try {
     // 启动Python后端
     pythonProcess = await startPythonBackend()
-    
-    // 创建窗口
-    createWindow()
-    
-    // macOS: 点击dock图标时重新创建窗口
-    app.on('activate', () => {
-      if (BrowserWindow.getAllWindows().length === 0) {
-        createWindow()
-      }
-    })
   } catch (error) {
-    log.error('Failed to start application:', error)
-    // 显示错误对话框
-    const { dialog } = require('electron')
-    dialog.showErrorBox('启动错误', `无法启动应用程序: ${error.message}`)
-    app.quit()
+    log.error('Failed to start Python backend:', error)
+    // 显示警告但不退出
+    if (mainWindow) {
+      mainWindow.webContents.executeJavaScript(`
+        console.error('后端服务启动失败: ${error.message}');
+      `)
+    }
   }
+  
+  // macOS: 点击dock图标时重新创建窗口
+  app.on('activate', () => {
+    if (BrowserWindow.getAllWindows().length === 0) {
+      createWindow()
+    }
+  })
 })
 
 // 所有窗口关闭时退出应用

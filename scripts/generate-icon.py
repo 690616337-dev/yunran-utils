@@ -189,14 +189,15 @@ def save_icons():
     png_img = create_toolbox_icon(1024)
     png_img.save(f'{build_dir}/icon.png', 'PNG')
     
-    # 生成 ICO (多尺寸)
+    # 生成 ICO (多尺寸) - Windows 需要 256x256
     print("生成 icon.ico (多尺寸)...")
     ico_sizes = [16, 32, 48, 64, 128, 256]
     ico_images = []
     for s in ico_sizes:
         img = create_toolbox_icon(s).convert('RGBA')
         ico_images.append(img)
-    ico_images[0].save(f'{build_dir}/icon.ico', format='ICO', sizes=[(s, s) for s in ico_sizes])
+    # PIL 保存 ICO 需要特殊处理
+    ico_images[-1].save(f'{build_dir}/icon.ico', format='ICO', sizes=[(s, s) for s in ico_sizes])
     
     # 生成 ICNS (macOS)
     print("生成 icon.icns (macOS)...")
