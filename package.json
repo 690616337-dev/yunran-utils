@@ -132,7 +132,6 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "云褍实用工具 v3",
-      "include": "build/installer.nsh",
       "deleteAppDataOnUninstall": false
     },
     "dmg": {
