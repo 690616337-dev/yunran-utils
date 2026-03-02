@@ -26,12 +26,10 @@ import {
   FileTextOutlined,
 } from '@ant-design/icons'
 import axios from 'axios'
+import api from '../api'
 
 const { TabPane } = Tabs
 const { Option } = Select
-
-// API基础URL
-const API_BASE = 'http://127.0.0.1:8000'
 
 const IdCardPage = () => {
   const [validateForm] = Form.useForm()
@@ -50,7 +48,7 @@ const IdCardPage = () => {
 
   const fetchAreas = async () => {
     try {
-      const res = await axios.get(`${API_BASE}/api/idcard/areas`)
+      const res = await api.get('/idcard/areas')
       const areasData = res.data.provinces || []
       setAreas(areasData)
       
@@ -74,12 +72,10 @@ const IdCardPage = () => {
   const handleValidate = async (values) => {
     setLoading(true)
     try {
-      const formData = new URLSearchParams()
+      const formData = new FormData()
       formData.append('id_card', values.idCard)
       
-      const res = await axios.post(`${API_BASE}/api/idcard/validate`, formData, {
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
-      })
+      const res = await api.post('/idcard/validate', formData)
       
       setValidateResult(res.data)
     } catch (error) {
@@ -93,7 +89,7 @@ const IdCardPage = () => {
   const handleGenerate = async (values) => {
     setGenerateLoading(true)
     try {
-      const formData = new URLSearchParams()
+      const formData = new FormData()
       
       // 处理地区选择 - Cascader 返回的是数组 [省代码, 市代码]
       if (values.areaCode && values.areaCode.length > 0) {
@@ -106,9 +102,7 @@ const IdCardPage = () => {
       if (values.gender) formData.append('gender', values.gender)
       formData.append('count', values.count || 1)
       
-      const res = await axios.post(`${API_BASE}/api/idcard/generate`, formData, {
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
-      })
+      const res = await api.post('/idcard/generate', formData)
       
       setGeneratedIds(res.data.idCards || [])
       message.success(`成功生成 ${res.data.count} 个身份证号码`)
