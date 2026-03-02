@@ -57,7 +57,7 @@ if REMBG_AVAILABLE and not REMBG_MODEL_AVAILABLE:
 
 # PDF处理
 try:
-    from pypdf import PdfMerger, PdfReader
+    from pypdf import PdfWriter, PdfReader
     PDF_AVAILABLE = True
 except ImportError:
     PDF_AVAILABLE = False
@@ -242,12 +242,15 @@ def get_constellation(month: int, day: int) -> str:
 
 def generate_id_card(area_code: str = None, birth_date: str = None, gender: str = None) -> str:
     """生成身份证号码"""
+    logger.info(f"Generating ID card with area_code={area_code}, birth_date={birth_date}, gender={gender}")
+    
     # 处理地区代码
     if not area_code:
         # 随机选择一个市级代码
         all_cities = get_all_city_codes()
         city = random.choice(all_cities)
         area_code = get_full_area_code(city["code"])
+        logger.info(f"Random area selected: {area_code}")
     elif len(area_code) == 2:
         # 省级代码，需要选择该省的一个市
         province_code = area_code
@@ -256,6 +259,7 @@ def generate_id_card(area_code: str = None, birth_date: str = None, gender: str 
             if cities:
                 city_code = random.choice(cities)
                 area_code = get_full_area_code(city_code)
+                logger.info(f"Province {province_code} -> City {city_code} -> Area {area_code}")
             else:
                 area_code = "110101"  # 默认北京东城区
         else:
@@ -263,11 +267,14 @@ def generate_id_card(area_code: str = None, birth_date: str = None, gender: str 
     elif len(area_code) == 4:
         # 市级代码，补充区县码
         area_code = get_full_area_code(area_code)
+        logger.info(f"City code expanded to: {area_code}")
     elif len(area_code) >= 6:
         # 已经是完整代码，取前6位
         area_code = area_code[:6]
+        logger.info(f"Full code truncated to: {area_code}")
     else:
         area_code = "110101"  # 默认北京东城区
+        logger.info(f"Default area used: {area_code}")
     
     if not birth_date:
         start_date = datetime(1950, 1, 1)
@@ -379,7 +386,7 @@ async def api_merge_pdf(files: List[UploadFile] = File(...)):
     if len(files) > 50:
         raise HTTPException(status_code=400, detail="最多支持50个PDF文件")
     
-    merger = PdfMerger()
+    writer = PdfWriter()
     temp_files = []
     output_path = None
     
@@ -421,12 +428,14 @@ async def api_merge_pdf(files: List[UploadFile] = File(...)):
                 logger.error(f"Error saving temp file {temp_path}: {e}")
                 raise HTTPException(status_code=500, detail=f"保存文件失败: {file.filename}")
             
-            # 添加到 merger
+            # 添加到 writer
             try:
-                merger.append(temp_path)
-                logger.info(f"Added {file.filename} to merger")
+                reader = PdfReader(temp_path)
+                for page in reader.pages:
+                    writer.add_page(page)
+                logger.info(f"Added {file.filename} to writer")
             except Exception as e:
-                logger.error(f"Error adding {file.filename} to merger: {e}")
+                logger.error(f"Error adding {file.filename} to writer: {e}")
                 raise HTTPException(status_code=400, detail=f"无效的PDF文件: {file.filename}")
         
         if len(temp_files) == 0:
@@ -437,8 +446,8 @@ async def api_merge_pdf(files: List[UploadFile] = File(...)):
         output_path = os.path.join(TEMP_DIR, output_filename)
         
         try:
-            merger.write(output_path)
-            merger.close()
+            with open(output_path, "wb") as f:
+                writer.write(f)
             register_temp_file(output_path)
             logger.info(f"Merged PDF saved to: {output_path}")
         except Exception as e:
