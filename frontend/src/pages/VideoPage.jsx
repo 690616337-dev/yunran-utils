@@ -6,14 +6,18 @@ import {
   Space, 
   Typography, 
   Select,
-  Alert,
-  message
+  message,
+  List,
+  Progress
 } from 'antd';
 import { 
   UploadOutlined, 
   VideoCameraOutlined,
-  ToolOutlined
+  ToolOutlined,
+  DeleteOutlined,
+  DownloadOutlined
 } from '@ant-design/icons';
+import { convertVideo } from '../api';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -25,19 +29,23 @@ const FORMATS = [
   { value: 'mkv', label: 'MKV' },
   { value: 'mov', label: 'MOV' },
   { value: 'wmv', label: 'WMV' },
+  { value: 'webm', label: 'WebM' },
 ];
 
 const RESOLUTIONS = [
   { value: 'original', label: '原画' },
   { value: '720p', label: '720p (HD)' },
   { value: '1080p', label: '1080p (Full HD)' },
-  { value: '4k', label: '4K (Ultra HD)' },
 ];
 
 export default function VideoPage() {
   const [fileList, setFileList] = useState([]);
   const [format, setFormat] = useState('mp4');
   const [resolution, setResolution] = useState('original');
+  const [converting, setConverting] = useState(false);
+  const [currentFile, setCurrentFile] = useState('');
+  const [progress, setProgress] = useState(0);
+  const [results, setResults] = useState([]);
 
   const handleUpload = ({ fileList: newFileList }) => {
     const validFiles = newFileList.filter(file => {
@@ -48,10 +56,75 @@ export default function VideoPage() {
       return true;
     });
     setFileList(validFiles);
+    setResults([]);
   };
 
-  const handleConvert = () => {
-    message.info('视频转换功能开发中，敬请期待！');
+  const removeFile = (index) => {
+    const newList = fileList.filter((_, i) => i !== index);
+    setFileList(newList);
+  };
+
+  const handleConvert = async () => {
+    if (fileList.length === 0) {
+      message.error('请先上传视频文件');
+      return;
+    }
+
+    setConverting(true);
+    setResults([]);
+    const newResults = [];
+
+    for (let i = 0; i < fileList.length; i++) {
+      const file = fileList[i];
+      setCurrentFile(file.name);
+      setProgress(Math.round((i / fileList.length) * 100));
+
+      try {
+        const uploadFile = file.originFileObj || file;
+        const response = await convertVideo(uploadFile, format, resolution);
+        
+        const blob = new Blob([response.data], { type: `video/${format}` });
+        const url = URL.createObjectURL(blob);
+        
+        const newName = file.name.replace(/\.[^/.]+$/, '') + '.' + format;
+        newResults.push({
+          originalName: file.name,
+          newName: newName,
+          url: url,
+          success: true
+        });
+      } catch (error) {
+        newResults.push({
+          originalName: file.name,
+          error: error.response?.data?.detail || error.message,
+          success: false
+        });
+      }
+    }
+
+    setProgress(100);
+    setResults(newResults);
+    setConverting(false);
+    setCurrentFile('');
+    
+    const successCount = newResults.filter(r => r.success).length;
+    message.success(`转换完成！成功 ${successCount}/${fileList.length}`);
+  };
+
+  const handleDownload = (result) => {
+    const a = document.createElement('a');
+    a.href = result.url;
+    a.download = result.newName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  };
+
+  const handleDownloadAll = () => {
+    results.filter(r => r.success).forEach(result => {
+      handleDownload(result);
+    });
+    message.success('开始批量下载');
   };
 
   const formatFileSize = (bytes) => {
@@ -66,14 +139,6 @@ export default function VideoPage() {
     <div>
       <Title level={2}>视频格式转换</Title>
 
-      <Alert
-        message="功能开发中"
-        description="视频转换功能正在开发中，目前仅支持上传和参数选择，转换功能即将上线。"
-        type="info"
-        showIcon
-        style={{ marginBottom: 24 }}
-      />
-
       <Card title="转换设置" style={{ marginBottom: 24 }}>
         <Space size="large">
           <div>
@@ -82,7 +147,6 @@ export default function VideoPage() {
               value={format}
               onChange={setFormat}
               style={{ width: 120, marginLeft: 8 }}
-              disabled
             >
               {FORMATS.map(f => (
                 <Option key={f.value} value={f.value}>{f.label}</Option>
@@ -96,7 +160,6 @@ export default function VideoPage() {
               value={resolution}
               onChange={setResolution}
               style={{ width: 180, marginLeft: 8 }}
-              disabled
             >
               {RESOLUTIONS.map(r => (
                 <Option key={r.value} value={r.value}>{r.label}</Option>
@@ -113,8 +176,7 @@ export default function VideoPage() {
           fileList={fileList}
           onChange={handleUpload}
           beforeUpload={() => false}
-          showUploadList={true}
-          disabled
+          showUploadList={false}
         >
           <p className="ant-upload-drag-icon">
             <VideoCameraOutlined />
@@ -122,17 +184,98 @@ export default function VideoPage() {
           <p className="ant-upload-text">点击或拖拽视频文件到此处</p>
           <p className="ant-upload-hint">支持 MP4、AVI、MKV、MOV、WMV 等格式，单文件不超过 500MB</p>
         </Dragger>
+
+        {fileList.length > 0 && (
+          <List
+            style={{ marginTop: 16 }}
+            dataSource={fileList}
+            renderItem={(file, index) => (
+              <List.Item
+                actions={[
+                  <Button
+                    key="delete"
+                    danger
+                    icon={<DeleteOutlined />}
+                    onClick={() => removeFile(index)}
+                    disabled={converting}
+                  />
+                ]}
+              >
+                <List.Item.Meta
+                  title={file.name}
+                  description={formatFileSize(file.size)}
+                />
+              </List.Item>
+            )}
+          />
+        )}
       </Card>
 
-      <Button
-        type="primary"
-        size="large"
-        icon={<ToolOutlined />}
-        disabled
-        onClick={handleConvert}
-      >
-        开始转换（开发中）
-      </Button>
+      {converting && (
+        <Card style={{ marginBottom: 24 }}>
+          <Progress percent={progress} status="active" />
+          <Text type="secondary">正在转换: {currentFile}</Text>
+        </Card>
+      )}
+
+      <Space size="large">
+        <Button
+          type="primary"
+          size="large"
+          icon={<ToolOutlined />}
+          loading={converting}
+          disabled={fileList.length === 0}
+          onClick={handleConvert}
+        >
+          开始转换
+        </Button>
+
+        {results.length > 0 && results.some(r => r.success) && (
+          <Button
+            type="default"
+            size="large"
+            icon={<DownloadOutlined />}
+            onClick={handleDownloadAll}
+          >
+            下载全部
+          </Button>
+        )}
+      </Space>
+
+      {results.length > 0 && (
+        <Card title="转换结果" style={{ marginTop: 24 }}>
+          <List
+            dataSource={results}
+            renderItem={(result) => (
+              <List.Item
+                actions={
+                  result.success ? [
+                    <Button
+                      key="download"
+                      type="primary"
+                      icon={<DownloadOutlined />}
+                      onClick={() => handleDownload(result)}
+                    >
+                      下载
+                    </Button>
+                  ] : []
+                }
+              >
+                <List.Item.Meta
+                  title={result.originalName}
+                  description={
+                    result.success ? (
+                      <Text type="success">转换成功: {result.newName}</Text>
+                    ) : (
+                      <Text type="danger">转换失败: {result.error}</Text>
+                    )
+                  }
+                />
+              </List.Item>
+            )}
+          />
+        </Card>
+      )}
     </div>
   );
 }

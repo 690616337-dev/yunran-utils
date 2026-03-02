@@ -619,21 +619,32 @@ async def api_convert_audio(
         # 检测输入格式
         input_format = file.filename.split('.')[-1].lower()
         
-        # 处理特殊格式
+        # 处理特殊格式映射
         format_mapping = {
             'mp3': 'mp3',
             'wav': 'wav',
             'aac': 'aac',
             'flac': 'flac',
             'ogg': 'ogg',
+            'oga': 'ogg',
+            'ogv': 'ogg',
             'm4a': 'mp4',
+            'm4p': 'mp4',
+            'm4r': 'mp4',
             'wma': 'asf',
+            'wmv': 'asf',
         }
         
         pydub_format = format_mapping.get(input_format, input_format)
         
         # 使用pydub加载音频
-        audio = AudioSegment.from_file(input_buffer, format=pydub_format)
+        try:
+            audio = AudioSegment.from_file(input_buffer, format=pydub_format)
+        except Exception as e:
+            logger.error(f"Error loading audio file: {e}")
+            # 尝试不指定格式加载
+            input_buffer.seek(0)
+            audio = AudioSegment.from_file(input_buffer)
         
         # 导出为指定格式
         output_buffer = io.BytesIO()
@@ -641,7 +652,10 @@ async def api_convert_audio(
         # 设置导出参数
         export_params = {"format": format}
         if format_lower in ['mp3', 'ogg']:
-            export_params["bitrate"] = bitrate
+            # 确保比特率格式正确
+            if bitrate and not bitrate.endswith('k'):
+                bitrate = bitrate + 'k'
+            export_params["bitrate"] = bitrate or '192k'
         
         audio.export(output_buffer, **export_params)
         output_buffer.seek(0)
@@ -667,8 +681,36 @@ async def api_convert_audio(
     except Exception as e:
         logger.error(f"Error converting audio: {e}")
         raise HTTPException(status_code=500, detail=f"转换失败: {str(e)}")
+        mime_types = {
+            'mp3': 'audio/mpeg',
+            'wav': 'audio/wav',
+            'aac': 'audio/aac',
+            'flac': 'audio/flac',
+            'ogg': 'audio/ogg',
+            'm4a': 'audio/mp4',
+            'wma': 'audio/x-ms-wma',
+        }
+        
+        return StreamingResponse(
+            output_buffer,
+            media_type=mime_types.get(format_lower, 'audio/mpeg'),
+            headers={"Content-Disposition": f"attachment; filename={output_filename}"}
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error converting audio: {e}")
+        raise HTTPException(status_code=500, detail=f"转换失败: {str(e)}")
 
-# ==================== 视频转换 API（预留）====================
+# ==================== 视频转换 API ====================
+
+# 检查 ffmpeg-python 是否可用
+try:
+    import ffmpeg
+    FFMPEG_PYTHON_AVAILABLE = True
+except ImportError:
+    FFMPEG_PYTHON_AVAILABLE = False
+    logger.warning("ffmpeg-python not available, video conversion will use subprocess")
 
 @app.post("/api/video/convert")
 async def api_convert_video(
@@ -676,16 +718,122 @@ async def api_convert_video(
     format: str = Form("mp4"),
     resolution: str = Form("original")
 ):
-    """转换视频格式（预留）"""
-    raise HTTPException(status_code=501, detail="视频转换功能正在开发中，敬请期待！")
+    """转换视频格式"""
+    if not FFMPEG_AVAILABLE:
+        raise HTTPException(
+            status_code=503, 
+            detail="ffmpeg未安装，无法进行视频转换。请安装ffmpeg: https://ffmpeg.org/download.html"
+        )
+    
+    try:
+        if not file.filename:
+            raise HTTPException(status_code=400, detail="未选择文件")
+        
+        # 检查输出格式
+        allowed_formats = {'mp4', 'avi', 'mkv', 'mov', 'wmv', 'flv', 'webm'}
+        format_lower = format.lower()
+        if format_lower not in allowed_formats:
+            raise HTTPException(status_code=400, detail=f"不支持的输出格式: {format}")
+        
+        input_data = await file.read()
+        
+        # 限制文件大小 (500MB)
+        if len(input_data) > 500 * 1024 * 1024:
+            raise HTTPException(status_code=400, detail="文件大小超过500MB限制")
+        
+        # 保存输入文件
+        timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
+        input_filename = f"video_input_{timestamp}.{file.filename.split('.')[-1]}"
+        output_filename = f"video_output_{timestamp}.{format_lower}"
+        input_path = os.path.join(TEMP_DIR, input_filename)
+        output_path = os.path.join(TEMP_DIR, output_filename)
+        
+        with open(input_path, "wb") as f:
+            f.write(input_data)
+        register_temp_file(input_path)
+        register_temp_file(output_path)
+        
+        # 构建 ffmpeg 命令
+        import subprocess
+        
+        # 分辨率设置
+        scale_filter = ""
+        if resolution == "720p":
+            scale_filter = "scale=-1:720"
+        elif resolution == "1080p":
+            scale_filter = "scale=-1:1080"
+        elif resolution == "4k":
+            scale_filter = "scale=-1:2160"
+        
+        # 构建命令
+        cmd = ["ffmpeg", "-i", input_path, "-y"]
+        
+        if scale_filter:
+            cmd.extend(["-vf", scale_filter])
+        
+        # 根据格式设置编码器
+        if format_lower == "mp4":
+            cmd.extend(["-c:v", "libx264", "-preset", "fast", "-crf", "23"])
+            cmd.extend(["-c:a", "aac", "-b:a", "192k"])
+        elif format_lower == "webm":
+            cmd.extend(["-c:v", "libvpx-vp9", "-crf", "30", "-b:v", "0"])
+            cmd.extend(["-c:a", "libopus", "-b:a", "128k"])
+        elif format_lower == "avi":
+            cmd.extend(["-c:v", "mpeg4", "-q:v", "3"])
+            cmd.extend(["-c:a", "libmp3lame", "-q:a", "4"])
+        else:
+            # 默认自动选择
+            cmd.extend(["-c:v", "copy", "-c:a", "copy"])
+        
+        cmd.append(output_path)
+        
+        # 执行转换
+        logger.info(f"Converting video: {' '.join(cmd)}")
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+        
+        if result.returncode != 0:
+            logger.error(f"FFmpeg error: {result.stderr}")
+            raise HTTPException(status_code=500, detail=f"视频转换失败: {result.stderr}")
+        
+        # 读取输出文件
+        with open(output_path, "rb") as f:
+            output_data = f.read()
+        
+        # 清理临时文件
+        cleanup_temp_file(input_path)
+        cleanup_temp_file(output_path)
+        
+        mime_types = {
+            'mp4': 'video/mp4',
+            'avi': 'video/x-msvideo',
+            'mkv': 'video/x-matroska',
+            'mov': 'video/quicktime',
+            'wmv': 'video/x-ms-wmv',
+            'flv': 'video/x-flv',
+            'webm': 'video/webm',
+        }
+        
+        return StreamingResponse(
+            io.BytesIO(output_data),
+            media_type=mime_types.get(format_lower, 'video/mp4'),
+            headers={"Content-Disposition": f"attachment; filename=converted.{format_lower}"}
+        )
+        
+    except HTTPException:
+        raise
+    except subprocess.TimeoutExpired:
+        raise HTTPException(status_code=500, detail="视频转换超时，请尝试更小的文件")
+    except Exception as e:
+        logger.error(f"Error converting video: {e}")
+        raise HTTPException(status_code=500, detail=f"转换失败: {str(e)}")
 
 @app.get("/api/video/status")
 async def api_video_status():
     """获取视频转换功能状态"""
     return {
-        "status": "development",
-        "message": "视频转换功能正在开发中",
-        "supported_formats": ["mp4", "avi", "mkv", "mov", "wmv"],
+        "status": "available" if FFMPEG_AVAILABLE else "unavailable",
+        "message": "视频转换功能可用" if FFMPEG_AVAILABLE else "ffmpeg未安装",
+        "supported_formats": ["mp4", "avi", "mkv", "mov", "wmv", "flv", "webm"],
         "supported_resolutions": ["original", "720p", "1080p", "4k"]
     }
 
