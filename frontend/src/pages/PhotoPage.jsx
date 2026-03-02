@@ -6,14 +6,11 @@ import {
   Space, 
   Typography, 
   Radio,
-  Spin,
   message,
-  Row,
-  Col,
-  Image,
   List,
   Badge,
-  Progress
+  Progress,
+  Image
 } from 'antd';
 import { 
   UploadOutlined, 
@@ -314,45 +311,6 @@ export default function PhotoPage() {
           </Card>
         </>
       )}
-    </div>
-  );
-}
-                      border: `2px solid ${bgColor === color.value ? '#1890ff' : '#d9d9d9'}`,
-                      minWidth: 80,
-                      textAlign: 'center'
-                    }}
-                  >
-                    {color.label}
-                  </Radio.Button>
-                ))}
-              </Space>
-            </Radio.Group>
-          </div>
-
-          <Space>
-            <Button
-              type="primary"
-              size="large"
-              onClick={handleRemoveBg}
-              loading={processing}
-              disabled={!file}
-            >
-              AI 智能抠图
-            </Button>
-            
-            <Button
-              type="default"
-              size="large"
-              icon={<BgColorsOutlined />}
-              onClick={handleChangeBg}
-              loading={processing}
-              disabled={!file}
-            >
-              更换背景色
-            </Button>
-          </Space>
-        </Space>
-      </Card>
     </div>
   );
 }
