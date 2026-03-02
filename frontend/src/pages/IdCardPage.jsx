@@ -15,6 +15,7 @@ import {
   Space,
   message,
   Spin,
+  Cascader,
 } from 'antd'
 import {
   CheckCircleOutlined,
@@ -38,6 +39,7 @@ const IdCardPage = () => {
   const [validateResult, setValidateResult] = useState(null)
   const [generatedIds, setGeneratedIds] = useState([])
   const [areas, setAreas] = useState([])
+  const [cascaderOptions, setCascaderOptions] = useState([])
   const [loading, setLoading] = useState(false)
   const [generateLoading, setGenerateLoading] = useState(false)
 
@@ -49,9 +51,22 @@ const IdCardPage = () => {
   const fetchAreas = async () => {
     try {
       const res = await axios.get(`${API_BASE}/api/idcard/areas`)
-      setAreas(res.data.areas || [])
+      const areasData = res.data.provinces || []
+      setAreas(areasData)
+      
+      // 转换为 Cascader 选项格式
+      const options = areasData.map(province => ({
+        value: province.code,
+        label: province.name,
+        children: province.cities.map(city => ({
+          value: city.code,
+          label: city.name,
+        })),
+      }))
+      setCascaderOptions(options)
     } catch (error) {
       console.error('获取地区列表失败:', error)
+      message.error('获取地区列表失败')
     }
   }
 
@@ -79,7 +94,14 @@ const IdCardPage = () => {
     setGenerateLoading(true)
     try {
       const formData = new URLSearchParams()
-      if (values.areaCode) formData.append('area_code', values.areaCode)
+      
+      // 处理地区选择 - Cascader 返回的是数组 [省代码, 市代码]
+      if (values.areaCode && values.areaCode.length > 0) {
+        // 使用市级代码（6位）
+        const cityCode = values.areaCode[values.areaCode.length - 1]
+        formData.append('area_code', cityCode)
+      }
+      
       if (values.birthDate) formData.append('birth_date', values.birthDate.format('YYYY-MM-DD'))
       if (values.gender) formData.append('gender', values.gender)
       formData.append('count', values.count || 1)
@@ -219,25 +241,20 @@ const IdCardPage = () => {
               form={generateForm}
               layout="vertical"
               onFinish={handleGenerate}
-              initialValues={{ count: 5, gender: '随机' }}
+              initialValues={{ count: 5, gender: '' }}
             >
               <Form.Item
                 name="areaCode"
                 label="地区"
               >
-                <Select 
-                  placeholder="选择地区（不选则随机）"
+                <Cascader
+                  options={cascaderOptions}
+                  placeholder="选择省市（不选则随机）"
                   allowClear
                   showSearch
-                  optionFilterProp="children"
-                >
-                  <Option value="">随机地区</Option>
-                  {areas.map(area => (
-                    <Option key={area.code} value={area.code}>
-                      {area.name} ({area.code})
-                    </Option>
-                  ))}
-                </Select>
+                  style={{ width: '100%' }}
+                  fieldNames={{ label: 'label', value: 'value', children: 'children' }}
+                />
               </Form.Item>
 
               <Form.Item

@@ -253,8 +253,11 @@ def generate_id_card(area_code: str = None, birth_date: str = None, gender: str 
         province_code = area_code
         if province_code in AREA_CODES_HIERARCHY:
             cities = list(AREA_CODES_HIERARCHY[province_code]["cities"].keys())
-            city_code = random.choice(cities)
-            area_code = get_full_area_code(city_code)
+            if cities:
+                city_code = random.choice(cities)
+                area_code = get_full_area_code(city_code)
+            else:
+                area_code = "110101"  # 默认北京东城区
         else:
             area_code = "110101"  # 默认北京东城区
     elif len(area_code) == 4:
@@ -272,7 +275,7 @@ def generate_id_card(area_code: str = None, birth_date: str = None, gender: str 
         days = random.randint(0, (end_date - start_date).days)
         birth_date = (start_date + timedelta(days=days)).strftime("%Y%m%d")
     else:
-        birth_date = birth_date.replace("-", "")
+        birth_date = birth_date.replace("-", "").replace("/", "")
         # 确保是 8 位日期格式
         if len(birth_date) != 8:
             birth_date = datetime.now().strftime("%Y%m%d")

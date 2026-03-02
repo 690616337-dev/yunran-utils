@@ -7,7 +7,10 @@ import {
   Space, 
   Typography, 
   Progress,
-  message 
+  message,
+  InputNumber,
+  Checkbox,
+  Tooltip
 } from 'antd';
 import { 
   UploadOutlined, 
@@ -17,7 +20,10 @@ import {
   ArrowUpOutlined,
   ArrowDownOutlined,
   DeleteOutlined,
-  FilePdfOutlined
+  FilePdfOutlined,
+  CopyOutlined,
+  MinusOutlined,
+  PlusOutlined
 } from '@ant-design/icons';
 import { mergePdf } from '../api';
 
@@ -29,6 +35,7 @@ export default function PdfMergePage() {
   const [merging, setMerging] = useState(false);
   const [progress, setProgress] = useState(0);
   const [mergedBlob, setMergedBlob] = useState(null);
+  const [enableCopies, setEnableCopies] = useState(false);
   const iframeRef = useRef(null);
 
   const handleUpload = ({ fileList: newFileList }) => {
@@ -38,7 +45,10 @@ export default function PdfMergePage() {
         return false;
       }
       return file.type === 'application/pdf' || file.name.endsWith('.pdf');
-    });
+    }).map(file => ({
+      ...file,
+      copies: 1, // 默认份数
+    }));
     setFileList(validFiles);
     setMergedBlob(null);
   };
@@ -61,9 +71,15 @@ export default function PdfMergePage() {
     }
   };
 
+  const updateCopies = (index, copies) => {
+    const newList = [...fileList];
+    newList[index] = { ...newList[index], copies: Math.max(1, Math.min(99, copies)) };
+    setFileList(newList);
+  };
+
   const handleMerge = async () => {
-    if (fileList.length < 2) {
-      message.error('请至少选择 2 个 PDF 文件');
+    if (fileList.length < 1) {
+      message.error('请至少选择 1 个 PDF 文件');
       return;
     }
 
@@ -71,13 +87,24 @@ export default function PdfMergePage() {
     setProgress(0);
 
     try {
-      const files = fileList.map(f => f.originFileObj || f);
-      const response = await mergePdf(files, (p) => setProgress(p));
+      // 根据份数展开文件列表
+      const expandedFiles = [];
+      fileList.forEach(file => {
+        const copies = enableCopies ? (file.copies || 1) : 1;
+        for (let i = 0; i < copies; i++) {
+          expandedFiles.push(file.originFileObj || file);
+        }
+      });
+      
+      console.log(`合并 ${fileList.length} 个文件，展开后共 ${expandedFiles.length} 份`);
+      
+      const response = await mergePdf(expandedFiles, (p) => setProgress(p));
       
       const blob = new Blob([response.data], { type: 'application/pdf' });
       setMergedBlob(blob);
-      message.success('PDF 合并成功！');
+      message.success(`PDF 合并成功！共 ${expandedFiles.length} 份内容`);
     } catch (error) {
+      console.error('合并错误:', error);
       message.error('合并失败: ' + (error.response?.data?.detail || error.message));
     } finally {
       setMerging(false);
@@ -103,19 +130,28 @@ export default function PdfMergePage() {
     
     const url = URL.createObjectURL(mergedBlob);
     
-    if (window.electronAPI?.openExternal) {
-      window.electronAPI.openExternal(url);
-      message.info('已在浏览器中打开，请使用 Ctrl+P 打印');
-    } else {
-      const printWindow = window.open(url, '_blank');
-      if (printWindow) {
-        printWindow.onload = () => printWindow.print();
+    // 使用 iframe 打印
+    const iframe = document.createElement('iframe');
+    iframe.style.display = 'none';
+    iframe.src = url;
+    document.body.appendChild(iframe);
+    
+    iframe.onload = () => {
+      try {
+        iframe.contentWindow.print();
         message.success('打印窗口已打开');
-      } else {
-        message.warning('弹窗被阻止，请下载后打印');
-        handleDownload();
+      } catch (e) {
+        // 如果跨域，尝试在新窗口打开
+        window.open(url, '_blank');
+        message.info('已在浏览器中打开，请使用 Ctrl+P 打印');
       }
-    }
+      
+      // 清理
+      setTimeout(() => {
+        document.body.removeChild(iframe);
+        URL.revokeObjectURL(url);
+      }, 60000);
+    };
   };
 
   const formatFileSize = (bytes) => {
@@ -149,7 +185,17 @@ export default function PdfMergePage() {
 
       {fileList.length > 0 && (
         <Card 
-          title={`已选择 ${fileList.length} 个文件`}
+          title={
+            <Space>
+              <span>已选择 {fileList.length} 个文件</span>
+              <Checkbox 
+                checked={enableCopies}
+                onChange={(e) => setEnableCopies(e.target.checked)}
+              >
+                启用份数设置
+              </Checkbox>
+            </Space>
+          }
           extra={
             <Button 
               danger 
@@ -191,6 +237,29 @@ export default function PdfMergePage() {
                   title={file.name}
                   description={formatFileSize(file.size)}
                 />
+                {enableCopies && (
+                  <Space>
+                    <Text type="secondary">份数:</Text>
+                    <Button 
+                      size="small" 
+                      icon={<MinusOutlined />}
+                      onClick={() => updateCopies(index, (file.copies || 1) - 1)}
+                    />
+                    <InputNumber
+                      min={1}
+                      max={99}
+                      value={file.copies || 1}
+                      onChange={(val) => updateCopies(index, val)}
+                      style={{ width: 60 }}
+                      size="small"
+                    />
+                    <Button 
+                      size="small" 
+                      icon={<PlusOutlined />}
+                      onClick={() => updateCopies(index, (file.copies || 1) + 1)}
+                    />
+                  </Space>
+                )}
               </List.Item>
             )}
           />
@@ -210,7 +279,7 @@ export default function PdfMergePage() {
           size="large"
           icon={<MergeCellsOutlined />}
           loading={merging}
-          disabled={fileList.length < 2}
+          disabled={fileList.length < 1}
           onClick={handleMerge}
         >
           合并 PDF
