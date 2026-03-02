@@ -690,26 +690,6 @@ async def api_convert_audio(
     except Exception as e:
         logger.error(f"Error converting audio: {e}")
         raise HTTPException(status_code=500, detail=f"转换失败: {str(e)}")
-        mime_types = {
-            'mp3': 'audio/mpeg',
-            'wav': 'audio/wav',
-            'aac': 'audio/aac',
-            'flac': 'audio/flac',
-            'ogg': 'audio/ogg',
-            'm4a': 'audio/mp4',
-            'wma': 'audio/x-ms-wma',
-        }
-        
-        return StreamingResponse(
-            output_buffer,
-            media_type=mime_types.get(format_lower, 'audio/mpeg'),
-            headers={"Content-Disposition": f"attachment; filename={output_filename}"}
-        )
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error converting audio: {e}")
-        raise HTTPException(status_code=500, detail=f"转换失败: {str(e)}")
 
 # ==================== 视频转换 API ====================
 
