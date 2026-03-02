@@ -77,15 +77,15 @@ jobs:
       run: |
         if [ "${{ matrix.platform }}" == "win" ]; then
           if [ "${{ matrix.arch }}" == "x64" ]; then
-            npx electron-builder --win --x64
+            npx electron-builder --win nsis --x64
           else
-            npx electron-builder --win --arm64
+            npx electron-builder --win nsis --arm64
           fi
         else
           if [ "${{ matrix.arch }}" == "x64" ]; then
-            npx electron-builder --mac --x64
+            npx electron-builder --mac dmg --x64
           else
-            npx electron-builder --mac --arm64
+            npx electron-builder --mac dmg --arm64
           fi
         fi
       shell: bash
