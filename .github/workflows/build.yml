@@ -7,9 +7,13 @@ on:
       - 'v*'
   workflow_dispatch:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   build-macos-x64:
-    runs-on: macos-12
+    runs-on: macos-13
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -53,7 +57,7 @@ jobs:
         path: dist/*.dmg
 
   build-macos-arm64:
-    runs-on: macos-14
+    runs-on: macos-latest
     steps:
     - name: Checkout code
       uses: actions/checkout@v4

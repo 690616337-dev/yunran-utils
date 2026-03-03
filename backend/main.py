@@ -492,6 +492,13 @@ async def api_remove_background(file: UploadFile = File(...)):
     if not REMBG_AVAILABLE:
         raise HTTPException(status_code=503, detail="图像处理功能不可用，请安装rembg和Pillow")
     
+    # 检查模型是否可用
+    if not REMBG_MODEL_AVAILABLE:
+        raise HTTPException(
+            status_code=503, 
+            detail="AI模型未下载。首次使用需要下载176MB模型文件，请检查网络连接或手动下载模型到 ~/.u2net/u2net.onnx"
+        )
+    
     try:
         if not file.filename:
             raise HTTPException(status_code=400, detail="未选择文件")
@@ -537,6 +544,13 @@ async def api_change_background(
     """更换证件照背景色"""
     if not REMBG_AVAILABLE:
         raise HTTPException(status_code=503, detail="图像处理功能不可用，请安装rembg和Pillow")
+    
+    # 检查模型是否可用
+    if not REMBG_MODEL_AVAILABLE:
+        raise HTTPException(
+            status_code=503, 
+            detail="AI模型未下载。首次使用需要下载176MB模型文件，请检查网络连接或手动下载模型到 ~/.u2net/u2net.onnx"
+        )
     
     try:
         if not file.filename:
