@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#4F46E5;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#7C3AED;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="shine" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#ffffff;stop-opacity:0.3" />
+      <stop offset="100%" style="stop-color:#ffffff;stop-opacity:0" />
+    </linearGradient>
+  </defs>
+  
+  <!-- 背景 -->
+  <rect width="512" height="512" rx="128" fill="url(#bg)"/>
+  
+  <!-- 高光 -->
+  <rect x="0" y="0" width="512" height="256" rx="128" fill="url(#shine)"/>
+  
+  <!-- 云朵图标 -->
+  <g fill="#ffffff" transform="translate(256, 280)">
+    <!-- 中心圆 -->
+    <circle cx="0" cy="-20" r="60"/>
+    <!-- 左侧圆 -->
+    <circle cx="-70" cy="10" r="50"/>
+    <!-- 右侧圆 -->
+    <circle cx="70" cy="10" r="50"/>
+    <!-- 底部连接 -->
+    <rect x="-90" y="10" width="180" height="50" rx="25"/>
+  </g>
+  
+  <!-- 工具图标（扳手） -->
+  <g fill="#ffffff" transform="translate(360, 140) rotate(45)">
+    <rect x="-8" y="-30" width="16" height="60" rx="4"/>
+    <rect x="-20" y="-40" width="40" height="20" rx="4"/>
+    <rect x="-15" y="20" width="30" height="25" rx="4"/>
+  </g>
+</svg>
