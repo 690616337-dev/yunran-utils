@@ -41,7 +41,11 @@ jobs:
     - name: Build Backend (PyInstaller ARM64)
       run: |
         cd backend
-        pyinstaller --onefile --name backend --target-arch arm64 main.py
+        # 使用arch命令确保在ARM64环境下构建
+        arch -arm64 pyinstaller --onefile --name backend --target-arch arm64 main.py
+        # 验证构建的二进制文件架构
+        echo "验证后端二进制文件架构:"
+        file dist/backend
         mkdir -p ../resources/backend
         cp dist/backend ../resources/backend/
         cd ..
@@ -49,7 +53,12 @@ jobs:
     - name: Build Electron (ARM64)
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: npx electron-builder --mac dmg --arm64
+      run: |
+        npx electron-builder --mac dmg --arm64
+        # 验证构建的APP架构
+        echo "验证Electron APP架构:"
+        file dist/*.dmg || true
+        ls -la dist/
 
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
