@@ -38,10 +38,10 @@ jobs:
     - name: Build frontend
       run: npm run build:frontend
 
-    - name: Build Backend (PyInstaller)
+    - name: Build Backend (PyInstaller x64)
       run: |
         cd backend
-        pyinstaller --onefile --name backend main.py
+        pyinstaller --onefile --name backend --target-arch x86_64 main.py
         mkdir -p ../resources/backend
         cp dist/backend ../resources/backend/
         cd ..
@@ -83,10 +83,10 @@ jobs:
     - name: Build frontend
       run: npm run build:frontend
 
-    - name: Build Backend (PyInstaller)
+    - name: Build Backend (PyInstaller ARM64)
       run: |
         cd backend
-        pyinstaller --onefile --name backend main.py
+        pyinstaller --onefile --name backend --target-arch arm64 main.py
         mkdir -p ../resources/backend
         cp dist/backend ../resources/backend/
         cd ..
