@@ -92,7 +92,11 @@ jobs:
       shell: bash
       run: |
         cd backend
-        pyinstaller --onefile --name backend main.py
+        if [ "${{ matrix.arch }}" == "arm64" ]; then
+          pyinstaller --onefile --name backend --target-arch arm64 main.py
+        else
+          pyinstaller --onefile --name backend main.py
+        fi
         mkdir -p ../resources/backend
         cp dist/backend.exe ../resources/backend/
         cd ..
