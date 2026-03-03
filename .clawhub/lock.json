@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "skills": {
+    "himalaya": {
+      "version": "1.0.0",
+      "installedAt": 1771358480452
+    },
+    "microsoft-excel": {
+      "version": "1.0.3",
+      "installedAt": 1771675563456
+    },
+    "powerpoint-pptx": {
+      "version": "1.0.0",
+      "installedAt": 1771675577063
+    },
+    "word-docx": {
+      "version": "1.0.0",
+      "installedAt": 1771675581123
+    }
+  }
+}
