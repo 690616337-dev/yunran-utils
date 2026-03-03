@@ -6,9 +6,16 @@ const getBaseURL = () => {
   if (import.meta.env.DEV) {
     return 'http://127.0.0.1:8000/api'
   }
-  // 生产环境 - Electron中通过IPC通信，不需要直接访问后端
-  // 但在开发模式下仍然需要
+  // 生产环境 - 同样使用本地后端（Electron会启动后端服务）
   return 'http://127.0.0.1:8000/api'
+}
+
+// 获取完整的基础URL（包含协议和主机）
+const getFullBaseURL = () => {
+  if (import.meta.env.DEV) {
+    return 'http://127.0.0.1:8000'
+  }
+  return 'http://127.0.0.1:8000'
 }
 
 // 创建 axios 实例
@@ -82,11 +89,11 @@ api.interceptors.response.use(
       // 请求发出但没有收到响应
       console.error('[API Network Error]', error.request)
       if (error.code === 'ECONNABORTED') {
-        errorMessage = '请求超时，请检查网络连接或稍后重试'
+        errorMessage = '请求超时，请检查后端服务是否正常运行'
       } else if (error.code === 'ECONNREFUSED') {
-        errorMessage = '无法连接到服务器，请确保后端服务已启动'
+        errorMessage = '无法连接到后端服务 (127.0.0.1:8000)，请确保应用已正确启动'
       } else {
-        errorMessage = '网络错误，请检查网络连接'
+        errorMessage = '网络错误，后端服务可能未启动'
       }
     } else {
       // 请求配置出错

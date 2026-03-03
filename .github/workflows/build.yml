@@ -41,8 +41,8 @@ jobs:
     - name: Build Backend (PyInstaller ARM64)
       run: |
         cd backend
-        # 使用arch命令确保在ARM64环境下构建
-        arch -arm64 pyinstaller --onefile --name backend --target-arch arm64 main.py
+        # 构建ARM64版本（在ARM64运行器上原生构建）
+        pyinstaller --onefile --name backend --target-arch arm64 main.py
         # 验证构建的二进制文件架构
         echo "验证后端二进制文件架构:"
         file dist/backend
