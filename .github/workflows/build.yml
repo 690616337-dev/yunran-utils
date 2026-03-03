@@ -12,51 +12,6 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  build-macos-x64:
-    runs-on: macos-latest-large
-    timeout-minutes: 60
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '20'
-
-    - name: Setup Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.11'
-
-    - name: Install dependencies
-      run: |
-        npm install
-        cd frontend && npm install && cd ..
-        pip install -r backend/requirements.txt pyinstaller
-
-    - name: Build frontend
-      run: npm run build:frontend
-
-    - name: Build Backend (PyInstaller x64)
-      run: |
-        cd backend
-        pyinstaller --onefile --name backend --target-arch x86_64 main.py
-        mkdir -p ../resources/backend
-        cp dist/backend ../resources/backend/
-        cd ..
-
-    - name: Build Electron (x64)
-      env:
-        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: npx electron-builder --mac dmg --x64
-
-    - name: Upload artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: macOS-x64
-        path: dist/*.dmg
-
   build-macos-arm64:
     runs-on: macos-latest
     timeout-minutes: 60
