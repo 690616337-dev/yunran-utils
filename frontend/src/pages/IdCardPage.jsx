@@ -153,12 +153,24 @@ const IdCardPage = () => {
                 label="身份证号码"
                 rules={[
                   { required: true, message: '请输入身份证号码' },
-                  { len: 18, message: '身份证号码必须为18位' }
+                  { 
+                    validator: (_, value) => {
+                      if (!value) return Promise.resolve();
+                      const cleanValue = value.replace(/\s/g, '');
+                      if (cleanValue.length !== 18) {
+                        return Promise.reject(new Error('身份证号码必须为18位'));
+                      }
+                      if (!/^\d{17}[\dXx]$/.test(cleanValue)) {
+                        return Promise.reject(new Error('身份证号码格式不正确'));
+                      }
+                      return Promise.resolve();
+                    }
+                  }
                 ]}
               >
                 <Input 
                   placeholder="请输入18位身份证号码" 
-                  maxLength={18}
+                  maxLength={19}
                   size="large"
                 />
               </Form.Item>
@@ -277,10 +289,33 @@ const IdCardPage = () => {
                 label="生成数量"
                 rules={[
                   { required: true, message: '请输入生成数量' },
-                  { type: 'number', min: 1, max: 50, message: '数量范围 1-50' }
+                  { 
+                    validator: (_, value) => {
+                      if (!value || value < 1 || value > 50) {
+                        return Promise.reject('数量范围 1-50');
+                      }
+                      return Promise.resolve();
+                    }
+                  }
                 ]}
               >
-                <Input type="number" min={1} max={50} />
+                <Input 
+                  type="number" 
+                  min={1} 
+                  max={50} 
+                  defaultValue={5}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val === '') {
+                      generateForm.setFieldsValue({ count: '' });
+                    } else {
+                      const num = parseInt(val);
+                      if (!isNaN(num)) {
+                        generateForm.setFieldsValue({ count: Math.min(50, Math.max(1, num)) });
+                      }
+                    }
+                  }}
+                />
               </Form.Item>
               
               <Form.Item>
