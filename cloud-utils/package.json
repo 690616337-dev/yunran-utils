@@ -11,6 +11,10 @@
     "dev:frontend": "cd frontend && npm run dev",
     "dev:backend": "cd backend && python -m uvicorn main:app --reload --port 8000",
     "dev:electron": "wait-on http://localhost:5173 http://127.0.0.1:8000/api/health && electron .",
+    "build:backend": "cd backend && pyinstaller --onefile --name backend backend.spec",
+    "build:backend:win": "cd backend && pyinstaller --onefile --name backend.exe backend.spec",
+    "build:full": "npm run build:frontend && npm run build:backend && npm run build:electron",
+    "build:full:win": "npm run build:frontend && npm run build:backend:win && npm run build:electron",
     "build": "npm run build:frontend && npm run build:electron",
     "build:frontend": "cd frontend && npm run build",
     "build:electron": "electron-builder",
@@ -59,7 +63,7 @@
     ],
     "extraResources": [
       {
-        "from": "resources/backend",
+        "from": "backend",
         "to": "backend",
         "filter": ["**/*"]
       }
