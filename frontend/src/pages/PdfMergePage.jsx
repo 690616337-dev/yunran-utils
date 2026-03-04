@@ -44,7 +44,9 @@ export default function PdfMergePage() {
         message.error(`${file.name} 超过 50MB 限制`);
         return false;
       }
-      return file.type === 'application/pdf' || file.name.endsWith('.pdf');
+      // 更可靠的PDF检测 - 主要依赖文件扩展名
+      const fileName = file.name.toLowerCase();
+      return fileName.endsWith('.pdf');
     }).map(file => ({
       ...file,
       copies: 1, // 默认份数
@@ -92,9 +94,17 @@ export default function PdfMergePage() {
       fileList.forEach(file => {
         const copies = enableCopies ? (file.copies || 1) : 1;
         for (let i = 0; i < copies; i++) {
-          expandedFiles.push(file.originFileObj || file);
+          // 确保使用原始文件对象
+          const originalFile = file.originFileObj || file;
+          if (originalFile) {
+            expandedFiles.push(originalFile);
+          }
         }
       });
+      
+      if (expandedFiles.length === 0) {
+        throw new Error('没有有效的PDF文件');
+      }
       
       console.log(`合并 ${fileList.length} 个文件，展开后共 ${expandedFiles.length} 份`);
       
@@ -105,7 +115,7 @@ export default function PdfMergePage() {
       message.success(`PDF 合并成功！共 ${expandedFiles.length} 份内容`);
     } catch (error) {
       console.error('合并错误:', error);
-      message.error('合并失败: ' + (error.response?.data?.detail || error.message));
+      message.error('合并失败: ' + (error.response?.data?.detail || error.message || '未知错误'));
     } finally {
       setMerging(false);
     }
