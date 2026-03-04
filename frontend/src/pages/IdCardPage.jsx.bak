@@ -72,10 +72,8 @@ const IdCardPage = () => {
   const handleValidate = async (values) => {
     setLoading(true)
     try {
-      // 清理输入（去除空格，转换X为大写）
-      const cleanIdCard = values.idCard.replace(/\s/g, '').toUpperCase();
       const formData = new FormData()
-      formData.append('id_card', cleanIdCard)
+      formData.append('id_card', values.idCard)
       
       const res = await api.post('/idcard/validate', formData)
       
@@ -103,10 +101,8 @@ const IdCardPage = () => {
       if (values.birthDate) formData.append('birth_date', values.birthDate.format('YYYY-MM-DD'))
       if (values.gender) formData.append('gender', values.gender)
       // 确保count是数字类型
-      let count = parseInt(values.count);
-      if (isNaN(count) || count < 1) count = 1;
-      if (count > 50) count = 50;
-      formData.append('count', count.toString());
+      const count = parseInt(values.count) || 1;
+      formData.append('count', Math.min(Math.max(count, 1), 50))
       
       const res = await api.post('/idcard/generate', formData)
       
